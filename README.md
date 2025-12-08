@@ -13,6 +13,18 @@
 
 ---
 
+## 👥 Project Collaborators
+
+- **ANDUGULE MAMATHA**
+- **Rupa**
+- **Atharva Rajoba**
+- **SATHWIK THELIDEVARAPALLI**
+- **Ronald Kevin Jayakumar**
+- **Thota Akhira Nandan**
+- **Pranathi Lingutla**
+
+---
+
 ## 🎯 Overview
 
 SwiftVisa leverages AI to help users determine their visa eligibility for various countries by analyzing official immigration policy documents. The system uses:
