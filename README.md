@@ -13,17 +13,6 @@
 
 ---
 
-## 👥 Project Collaborators
-
-- **ANDUGULE MAMATHA**
-- **Rupa**
-- **Atharva Rajoba**
-- **SATHWIK THELIDEVARAPALLI**
-- **Ronald Kevin Jayakumar**
-- **Thota Akhira Nandan**
-- **Pranathi Lingutla**
-
----
 
 ## 🎯 Overview
 
