@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import './App.css';
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
 function App() {
   const [formData, setFormData] = useState({
@@ -24,7 +25,7 @@ function App() {
 
   const checkBackendHealth = async () => {
     try {
-      const response = await axios.get('http://localhost:8000/health', { timeout: 5000 });
+      const response = await axios.get(`${API_URL}/health`, { timeout: 5000 });
       if (response.data.status === 'healthy') {
         setBackendStatus('online');
       }
@@ -55,7 +56,7 @@ function App() {
 
     try {
       const response = await axios.post(
-        'http://localhost:8000/check-eligibility', 
+        `${API_URL}/check-eligibility`,
         formData,
         { timeout: 30000 } // 30 second timeout
       );
@@ -67,7 +68,7 @@ function App() {
       } else if (err.response) {
         setError(err.response.data?.detail || 'Server error occurred. Please try again.');
       } else if (err.request) {
-        setError('Unable to connect to the server. Please ensure the backend is running on http://localhost:8000');
+        setError('Unable to connect to the server. Please ensure the backend is running.');
       } else {
         setError('An unexpected error occurred. Please try again.');
       }
