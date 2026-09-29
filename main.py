@@ -34,7 +34,7 @@ except ImportError as e:
 # --- LangChain imports (final for your versions) ---
 from langchain_chroma import Chroma
 from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_classic.chains import RetrievalQA
+from langchain.chains import RetrievalQA
 from langchain_openai import ChatOpenAI
 
 
