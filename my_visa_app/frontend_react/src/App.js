@@ -25,7 +25,7 @@ function App() {
 
   const checkBackendHealth = async () => {
     try {
-      const response = await axios.get(`${API_URL}/health`, { timeout: 5000 });
+      const response = await axios.get(`${API_URL}/health`, { timeout: 60000 });
       if (response.data.status === 'healthy') {
         setBackendStatus('online');
       }
@@ -58,7 +58,7 @@ function App() {
       const response = await axios.post(
         `${API_URL}/check-eligibility`,
         formData,
-        { timeout: 30000 } // 30 second timeout
+        { timeout: 120000 } // 30 second timeout
       );
       setResult(response.data.eligibility);
       setProvider(response.data.provider || 'unknown');
@@ -68,7 +68,7 @@ function App() {
       } else if (err.response) {
         setError(err.response.data?.detail || 'Server error occurred. Please try again.');
       } else if (err.request) {
-        setError('Unable to connect to the server. Please ensure the backend is running.');
+        setError('Unable to connect to the server. Please wait a moment and try again. The backend may be waking up.');
       } else {
         setError('An unexpected error occurred. Please try again.');
       }
