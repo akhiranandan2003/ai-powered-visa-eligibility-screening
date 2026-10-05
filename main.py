@@ -116,7 +116,7 @@ def fallback_search(query: str, k: int = TOP_K):
     from langchain_core.documents import Document
     import re
 
-    query_terms = set(re.findall(r"\\b[a-zA-Z0-9]+\\b", query.lower()))
+    query_terms = set(re.findall(r"\b[a-zA-Z0-9]+\b", query.lower()))
     scored = []
     clean_dir = "data/clean"
     if not os.path.isdir(clean_dir):
@@ -131,7 +131,7 @@ def fallback_search(query: str, k: int = TOP_K):
                 content = fh.read()
         except OSError:
             continue
-        terms = set(re.findall(r"\\b[a-zA-Z0-9]+\\b", content.lower()))
+        terms = set(re.findall(r"\b[a-zA-Z0-9]+\b", content.lower()))
         score = len(query_terms & terms)
         if score:
             scored.append((score, filename, content))
@@ -324,7 +324,10 @@ async def query_vectorstore(request: VectorStoreQuery):
         return {"error": "Query parameter is required"}
     
     try:
-        if db is None:\n            docs = fallback_search(request.query, request.k)\n        else:\n            docs = db.similarity_search(request.query, k=request.k)
+        if db is None:
+            docs = fallback_search(request.query, request.k)
+        else:
+            docs = db.similarity_search(request.query, k=request.k)
         results = []
         
         for i, doc in enumerate(docs, 1):
@@ -441,7 +444,10 @@ async def get_visa_requirements(destination: str, visa_type: str):
     query = f"What are the requirements for a {visa_type} visa to {destination}?"
     
     try:
-        if db is None:\n            docs = fallback_search(query, 3)\n        else:\n            docs = db.similarity_search(query, k=3)
+        if db is None:
+            docs = fallback_search(query, 3)
+        else:
+            docs = db.similarity_search(query, k=3)
         
         if not docs:
             return {
