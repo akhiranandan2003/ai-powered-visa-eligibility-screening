@@ -33,7 +33,6 @@ except ImportError as e:
 
 # --- LangChain imports (final for your versions) ---
 from langchain_chroma import Chroma
-from langchain_huggingface import HuggingFaceEmbeddings
 from langchain.chains import RetrievalQA
 from langchain_openai import ChatOpenAI
 
@@ -41,7 +40,7 @@ from langchain_openai import ChatOpenAI
 # ----------------------------------------
 # CONFIG
 # ----------------------------------------
-CHROMA_DB_DIR = "vectorstore"
+CHROMA_DB_DIR = os.getenv("CHROMA_DB_DIR", "vectorstore")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")  # Optional
 TOP_K = 5
 
@@ -94,15 +93,51 @@ async def log_requests(request: Request, call_next):
 # ----------------------------------------
 # LOAD VECTORSTORE
 # ----------------------------------------
-logger.info("🔍 Loading embeddings and Chroma vectorstore...")
-try:
-    embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
-    db = Chroma(persist_directory=CHROMA_DB_DIR, embedding_function=embeddings)
-    retriever = db.as_retriever(search_type="similarity", search_kwargs={"k": TOP_K})
-    logger.info("✅ Vectorstore loaded successfully.")
-except Exception as e:
-    logger.error(f"❌ Failed to load vectorstore: {e}")
-    raise
+# Do not load a PyTorch/SentenceTransformer model at startup. On Render's
+# 512 MiB free instance that can cause an OOM restart. Chroma can use its
+# lightweight default embedding function when the persisted store exists.
+db = None
+retriever = None
+
+if os.path.isdir(CHROMA_DB_DIR):
+    try:
+        logger.info("🔍 Loading Chroma vectorstore...")
+        db = Chroma(persist_directory=CHROMA_DB_DIR)
+        retriever = db.as_retriever(search_type="similarity", search_kwargs={"k": TOP_K})
+        logger.info("✅ Vectorstore loaded successfully.")
+    except Exception as e:
+        logger.warning(f"⚠️ Vectorstore could not be loaded: {e}")
+else:
+    logger.warning(f"⚠️ Vectorstore directory not found: {CHROMA_DB_DIR}. Starting with data-file fallback.")
+
+
+def fallback_search(query: str, k: int = TOP_K):
+    """Low-memory keyword fallback when the Chroma store is unavailable."""
+    from langchain_core.documents import Document
+    import re
+
+    query_terms = set(re.findall(r"\\b[a-zA-Z0-9]+\\b", query.lower()))
+    scored = []
+    clean_dir = "data/clean"
+    if not os.path.isdir(clean_dir):
+        return []
+
+    for filename in os.listdir(clean_dir):
+        if not filename.endswith(".txt"):
+            continue
+        path = os.path.join(clean_dir, filename)
+        try:
+            with open(path, "r", encoding="utf-8") as fh:
+                content = fh.read()
+        except OSError:
+            continue
+        terms = set(re.findall(r"\\b[a-zA-Z0-9]+\\b", content.lower()))
+        score = len(query_terms & terms)
+        if score:
+            scored.append((score, filename, content))
+
+    scored.sort(key=lambda item: item[0], reverse=True)
+    return [Document(page_content=item[2], metadata={"source": item[1]}) for item in scored[:k]]
 
 # ----------------------------------------
 # DATA MODELS
@@ -152,7 +187,7 @@ def run_retrieval_only(query: str) -> str:
     """Fallback retrieval if no LLM key is found."""
     logger.info("ℹ️ Running retrieval-only mode (using vectorstore search).")
     try:
-        docs = retriever.invoke(query)
+        docs = retriever.invoke(query) if retriever is not None else fallback_search(query)
         if not docs:
             logger.warning("No documents retrieved for query")
             return "❌ No relevant visa information found for your query. Please try different search terms or contact support."
@@ -289,7 +324,7 @@ async def query_vectorstore(request: VectorStoreQuery):
         return {"error": "Query parameter is required"}
     
     try:
-        docs = db.similarity_search(request.query, k=request.k)
+        if db is None:\n            docs = fallback_search(request.query, request.k)\n        else:\n            docs = db.similarity_search(request.query, k=request.k)
         results = []
         
         for i, doc in enumerate(docs, 1):
@@ -350,7 +385,7 @@ async def get_stats():
         "llm_enabled": USE_LLM,
         "llm_provider": LLM_PROVIDER,
         "openai_available": USE_OPENAI,
-        "gemini_available": USE_GEMINI,
+        "gemini_available": bool(os.getenv("GEMINI_API_KEY")),
         "top_k_retrieval": TOP_K,
         "api_version": "1.0.0"
     }
@@ -406,7 +441,7 @@ async def get_visa_requirements(destination: str, visa_type: str):
     query = f"What are the requirements for a {visa_type} visa to {destination}?"
     
     try:
-        docs = db.similarity_search(query, k=3)
+        if db is None:\n            docs = fallback_search(query, 3)\n        else:\n            docs = db.similarity_search(query, k=3)
         
         if not docs:
             return {
